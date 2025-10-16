@@ -65,3 +65,49 @@ To use the development environment:
 nix develop
 make test
 ```
+
+## Running webhooks locally
+
+If you want to run the webhooks locally, you'll have to generate certificates for serving the webhooks, and place them in the right directory (`/tmp/k8s-webhook-server/serving-certs/tls.{crt,key}`, by default).
+
+If you're not running a local API server, you'll also need to figure out how to proxy traffic from the remote cluster to your local webhook server. For this reason, we generally recommend disabling webhooks when doing your local code-run-test cycle, as we do below.
+
+In a separate terminal, run:
+
+```sh
+export ENABLE_WEBHOOKS=false
+make run
+```
+
+## FAQ
+
+### Too long: must have at most 262144 bytes
+
+If you encounter the error `Too long: must have at most 262144 bytes` when running `make install` or `make deploy`, this occurs due to a size limit enforced by the Kubernetes API.
+
+**Why does this happen?**
+
+When using `kubectl apply`, the Kubernetes API stores the entire previous configuration in a `kubectl.kubernetes.io/last-applied-configuration` annotation. If your CRD is too large, this annotation exceeds the 262KB limit. [More details in the Kubebuilder FAQ](https://book.kubebuilder.io/faq#the-error-too-long-must-have-at-most-262144-bytes-is-faced-when-i-run-make-install-to-apply-the-crd-manifests-how-to-solve-it-why-this-error-is-faced).
+
+**Solutions implemented in this project:**
+
+1. **Server-side apply** (recommended): The `make install` and `make deploy` targets use `kubectl apply --server-side`, which doesn't create the large annotation. This is the approach we've implemented.
+
+2. **PreserveUnknownFields markers**: For complex nested types like `JobTemplateSpec`, we use kubebuilder markers to reduce schema size:
+   ```go
+   // +kubebuilder:pruning:PreserveUnknownFields
+   // +kubebuilder:validation:XPreserveUnknownFields
+   JobTemplate batchv1.JobTemplateSpec `json:"jobTemplate"`
+   ```
+
+**Alternative approaches** (if server-side apply doesn't work for you):
+
+- **Remove descriptions**: Add `maxDescLen=0` to controller-gen in the Makefile:
+  ```makefile
+  $(CONTROLLER_GEN) rbac:roleName=manager-role crd:maxDescLen=0 webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+  ```
+
+- **Re-design your APIs**: If your CRD is extremely large, consider splitting it into multiple smaller resources.
+
+For more information, see the [CRD Size Limitation Fix](#crd-size-limitation-fix) section above.
+
