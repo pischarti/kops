@@ -8,4 +8,14 @@ layout:
 - go.kubebuilder.io/v4
 projectName: kops
 repo: xilia.net/guestbook
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: xilia.net
+  group: webapp
+  kind: Guestbook
+  path: xilia.net/guestbook/api/v1
+  version: v1
 version: "3"
