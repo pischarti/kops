@@ -39,14 +39,33 @@ spec:
           spec:
             description: spec defines the desired state of Guestbook
             properties:
-              foo:
-                description: foo is an example field of Guestbook. Edit guestbook_types.go
-                  to remove/update
+              configMapName:
+                description: Name of the ConfigMap for GuestbookSpec's configuration
+                maxLength: 15
+                minLength: 1
                 type: string
+              size:
+                description: Quantity of instances
+                format: int32
+                maximum: 10
+                minimum: 1
+                type: integer
+              type:
+                enum:
+                - Phone
+                - Address
+                - Name
+                type: string
+            required:
+            - configMapName
+            - size
             type: object
           status:
             description: status defines the observed state of Guestbook
             properties:
+              active:
+                description: PodName of the active Guestbook node.
+                type: string
               conditions:
                 description: |-
                   conditions represent the current state of the Guestbook resource.
@@ -116,6 +135,14 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              standby:
+                description: PodNames of the standby Guestbook nodes.
+                items:
+                  type: string
+                type: array
+            required:
+            - active
+            - standby
             type: object
         required:
         - spec
