@@ -14,10 +14,11 @@
       forAllSystems = f: genAttrs supportedSystems (system: f system);
     in {
       devShells = forAllSystems (system:
-        let pkgs = import nixpkgs { 
-          inherit system; 
-          config.allowUnfree = true; 
-        };
+        let 
+          pkgs = import nixpkgs { 
+            inherit system; 
+            config.allowUnfree = true; 
+          };
         in {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
@@ -47,6 +48,12 @@
               python313Packages.httpx
               uv
             ];
+            
+            # On macOS, configure CGO to use system frameworks
+            shellHook = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              export CGO_LDFLAGS="-F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -framework CoreFoundation -framework Security"
+              export CGO_CFLAGS="-F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            '';
           };
         });
     };
