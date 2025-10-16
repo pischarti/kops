@@ -21,6 +21,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,7 +32,7 @@ import (
 	webappv1 "xilia.net/guestbook/api/v1"
 )
 
-var _ = Describe("Guestbook Controller", func() {
+var _ = Describe("CronJob Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,21 +42,39 @@ var _ = Describe("Guestbook Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		guestbook := &webappv1.Guestbook{}
+		cronjob := &webappv1.CronJob{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind Guestbook")
-			err := k8sClient.Get(ctx, typeNamespacedName, guestbook)
+			By("creating the custom resource for the Kind CronJob")
+			err := k8sClient.Get(ctx, typeNamespacedName, cronjob)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &webappv1.Guestbook{
+				resource := &webappv1.CronJob{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: webappv1.GuestbookSpec{
-						Size:          1,
-						ConfigMapName: "test-config",
-						Type:          "Name",
+					Spec: webappv1.CronJobSpec{
+						Schedule: "*/1 * * * *",
+						JobTemplate: batchv1.JobTemplateSpec{
+							Spec: batchv1.JobSpec{
+								Template: corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										Containers: []corev1.Container{
+											{
+												Name:  "hello",
+												Image: "busybox",
+												Command: []string{
+													"/bin/sh",
+													"-c",
+													"echo hello",
+												},
+											},
+										},
+										RestartPolicy: corev1.RestartPolicyOnFailure,
+									},
+								},
+							},
+						},
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
@@ -63,16 +83,16 @@ var _ = Describe("Guestbook Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &webappv1.Guestbook{}
+			resource := &webappv1.CronJob{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance Guestbook")
+			By("Cleanup the specific resource instance CronJob")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &GuestbookReconciler{
+			controllerReconciler := &CronJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

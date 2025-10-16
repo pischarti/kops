@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - webapp.xilia.net
   resources:
+  - cronjobs
   - guestbooks
   verbs:
   - create
@@ -19,12 +20,14 @@ rules:
 - apiGroups:
   - webapp.xilia.net
   resources:
+  - cronjobs/finalizers
   - guestbooks/finalizers
   verbs:
   - update
 - apiGroups:
   - webapp.xilia.net
   resources:
+  - cronjobs/status
   - guestbooks/status
   verbs:
   - get

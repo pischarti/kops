@@ -6,7 +6,32 @@
 kubebuilder init --domain xilia.net --repo xilia.net/guestbook
 kubebuilder create api --group webapp --version v1 --kind Guestbook
 make manifests
+
+kubebuilder create api --group webapp --version v1 --kind CronJob
+make manifests
 ```
+
+### CRD Size Limitation Fix
+
+When creating CRDs that embed complex Kubernetes types (like `batchv1.JobTemplateSpec`), the generated CRD can exceed Kubernetes' 262KB annotation limit when using `kubectl apply`. 
+
+**Problem**: The CronJob CRD includes a full `JobTemplateSpec` which contains the complete Pod specification, resulting in a very large OpenAPI schema.
+
+**Solutions Applied**:
+
+1. **Added PreserveUnknownFields markers** in `api/v1/cronjob_types.go`:
+   ```go
+   // +kubebuilder:pruning:PreserveUnknownFields
+   // +kubebuilder:validation:XPreserveUnknownFields
+   JobTemplate batchv1.JobTemplateSpec `json:"jobTemplate"`
+   ```
+   This reduces the schema size by not generating full validation for nested fields.
+
+2. **Use server-side apply** in the Makefile:
+   ```makefile
+   kubectl apply --server-side -f -
+   ```
+   Server-side apply doesn't create the `kubectl.kubernetes.io/last-applied-configuration` annotation, bypassing the size limit.
 
 ## Development on macOS with Nix
 
